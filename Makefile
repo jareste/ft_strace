@@ -3,9 +3,9 @@ NAME = ft_strace
 #########
 RM = rm -rf
 CC = cc
-CFLAGS = -Werror -Wextra -Wall -g -fsanitize=address
+CFLAGS = -Werror -Wextra -Wall -g -O3 -fsanitize=address -DDEBUG
 LDFLAGS = -lm
-RELEASE_CFLAGS = $(CFLAGS) -DNDEBUG
+RELEASE_CFLAGS = -Werror -Wextra -Wall -g -O3
 #########
 
 #########
@@ -48,7 +48,8 @@ fclean: clean
 	$(RM) $(NAME)
 	@echo "EVERYTHING REMOVED   "
 
-re:	fclean all
+re: fclean
+	$(MAKE) all CFLAGS="$(CFLAGS)"
 
 .gitignore:
 	@if [ ! -f .gitignore ]; then \

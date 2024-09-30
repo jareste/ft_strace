@@ -11,6 +11,12 @@
 #define MAX_SYSCALL_NAME    32
 #define MAX_SYSCALL_NUMBER  512
 
+#ifdef DEBUG
+    void print_syscall_list();
+#else
+    #define print_syscall_list(x, y) ((void)0)
+#endif
+
 typedef struct {
     int number;
     char name[MAX_SYSCALL_NAME];
@@ -24,6 +30,7 @@ typedef enum {
 Syscall syscalls_64[MAX_SYSCALL_NUMBER];
 Syscall syscalls_32[MAX_SYSCALL_NUMBER];
 
+#ifdef DEBUG
 /*
     Print the list of syscalls with their number and name.
     Just for debug purposes.
@@ -55,6 +62,7 @@ void print_syscall_list()
         printf("%d: %s\n", syscalls_32[i].number, syscalls_32[i].name);
     }
 }
+#endif
 
 /*
     As ptrace just informs a number, we need the relation between the number and the name of the syscall.
