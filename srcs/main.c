@@ -35,7 +35,7 @@ Syscall syscalls_32[MAX_SYSCALL_NUMBER];
     Print the list of syscalls with their number and name.
     Just for debug purposes.
 */
-void print_syscall_list()
+static void print_syscall_list()
 {
     int i;
     bool first = true;
@@ -120,6 +120,30 @@ void init_syscall_list()
     }
 }
 
+void ignore_signals()
+{
+    sigset_t set;
+
+    /*
+        Initialize the signal set.
+    */
+    sigemptyset(&set);
+
+    /*
+        Add the signals to be ignored.
+    */
+    sigaddset(&set, SIGHUP);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGQUIT);
+    sigaddset(&set, SIGPIPE);
+    sigaddset(&set, SIGTERM);
+
+    /*
+        Add the signals to the mask.
+    */
+    sigprocmask(SIG_BLOCK, &set, NULL);
+}
+
 int main(int argc, char *argv[])
 {
     pid_t child;
@@ -136,12 +160,8 @@ int main(int argc, char *argv[])
     */
     init_syscall_list(&syscalls_64, &syscalls_32);
 
-    /* TODO: Remove */
+    /* DEBUG */
     print_syscall_list(&syscalls_64, &syscalls_32);
-    (void)syscalls_64;
-    (void)syscalls_32;
-    return 0;
-    /* TODO: Remove */
 
     /*
         Fork where we will run the program that will be traced.
@@ -154,6 +174,10 @@ int main(int argc, char *argv[])
             perror("ptrace(PTRACE_TRACEME)");
             return 1;
         }
+        /*
+            Stop child until parent process it's attached properly.
+        */
+        raise(SIGSTOP);
 
         /* TODO: build path */
         execvp(argv[1], &argv[1]);
@@ -162,6 +186,15 @@ int main(int argc, char *argv[])
     }
     else if (child > 0)
     {
+        waitpid(child, &status, 0); // Wait for the child to stop on SIGSTOP
+
+        if (ptrace(PTRACE_SEIZE, child, NULL, NULL) < 0)
+            fprintf(stderr, "%s: ptrace: %s\n", prg_name, strerror(errno));
+        if (ptrace(PTRACE_INTERRUPT, child, NULL, NULL) < 0)
+            fprintf(stderr, "%s: ptrace: %s\n", prg_name, strerror(errno));
+
+        ignore_signals();
+        trace(child);
         /* TODO: implement traces*/
     }
     else
