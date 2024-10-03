@@ -8,24 +8,13 @@
 #include <errno.h>
 #include <string.h>
 
-#define MAX_SYSCALL_NAME    32
-#define MAX_SYSCALL_NUMBER  512
+#include <ft_strace.h>
 
 #ifdef DEBUG
-    void print_syscall_list();
+    static void print_syscall_list();
 #else
     #define print_syscall_list(x, y) ((void)0)
 #endif
-
-typedef struct {
-    int number;
-    char name[MAX_SYSCALL_NAME];
-} Syscall;
-
-typedef enum {
-    false = 0,
-    true = 1
-} bool;
 
 Syscall syscalls_64[MAX_SYSCALL_NUMBER];
 Syscall syscalls_32[MAX_SYSCALL_NUMBER];
@@ -122,21 +111,33 @@ void init_syscall_list()
 
 void ignore_signals()
 {
-    sigset_t set;
 
-    /*
-        Initialize the signal set.
-    */
-    sigemptyset(&set);
+    	sigset_t		set;
 
-    /*
-        Add the signals to be ignored.
-    */
-    sigaddset(&set, SIGHUP);
-    sigaddset(&set, SIGINT);
-    sigaddset(&set, SIGQUIT);
-    sigaddset(&set, SIGPIPE);
-    sigaddset(&set, SIGTERM);
+	sigemptyset(&set);
+	sigprocmask(SIG_SETMASK, &set, NULL);
+	sigaddset(&set, SIGHUP);
+	sigaddset(&set, SIGINT);
+	sigaddset(&set, SIGQUIT);
+	sigaddset(&set, SIGPIPE);
+	sigaddset(&set, SIGTERM);
+	sigprocmask(SIG_BLOCK, &set, NULL);
+    // sigset_t set;
+
+    // /*
+    //     Initialize the signal set.
+    // */
+    // sigemptyset(&set);
+
+	// sigprocmask(SIG_SETMASK, &set, NULL);
+    // /*
+    //     Add the signals to be ignored.
+    // */
+    // sigaddset(&set, SIGHUP);
+    // sigaddset(&set, SIGINT);
+    // sigaddset(&set, SIGQUIT);
+    // sigaddset(&set, SIGPIPE);
+    // sigaddset(&set, SIGTERM);
 
     /*
         Add the signals to the mask.
@@ -144,9 +145,10 @@ void ignore_signals()
     sigprocmask(SIG_BLOCK, &set, NULL);
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char *argv[], char* env[])
 {
     pid_t child;
+    int status;
 
     /* No program to trace */
     if (argc < 2)
@@ -169,33 +171,35 @@ int main(int argc, char *argv[])
     child = fork();
     if (child == 0)
     {
-        if (ptrace(PTRACE_TRACEME, 0, NULL, NULL) == -1)
-        {
-            perror("ptrace(PTRACE_TRACEME)");
-            return 1;
-        }
+        // if (ptrace(PTRACE_TRACEME, 0, NULL, NULL) == -1)
+        // {
+        //     perror("ptrace(PTRACE_TRACEME)");
+        //     return 1;
+        // }
         /*
             Stop child until parent process it's attached properly.
         */
         raise(SIGSTOP);
 
         /* TODO: build path */
-        execvp(argv[1], &argv[1]);
+        execve(argv[1], &argv[1], env);
         perror("execvp");
         exit(1);
     }
     else if (child > 0)
     {
-        waitpid(child, &status, 0); // Wait for the child to stop on SIGSTOP
 
         if (ptrace(PTRACE_SEIZE, child, NULL, NULL) < 0)
-            fprintf(stderr, "%s: ptrace: %s\n", prg_name, strerror(errno));
+            fprintf(stderr, "%s: ptrace: %s\n", "ft_strace", strerror(errno));
+       
         if (ptrace(PTRACE_INTERRUPT, child, NULL, NULL) < 0)
-            fprintf(stderr, "%s: ptrace: %s\n", prg_name, strerror(errno));
+            fprintf(stderr, "%s: ptrace: %s\n", "ft_strace", strerror(errno));
 
+        waitpid(child, &status, 0);
         ignore_signals();
         trace(child);
         /* TODO: implement traces*/
+        return WEXITSTATUS(status);
     }
     else
     {

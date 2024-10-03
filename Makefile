@@ -9,7 +9,7 @@ RELEASE_CFLAGS = -Werror -Wextra -Wall -g -O3
 #########
 
 #########
-FILES = main 
+FILES = main trace
 
 SRC = $(addsuffix .c, $(FILES))
 
