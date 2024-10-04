@@ -12,6 +12,10 @@ Syscall syscalls_32[MAX_SYSCALL_NUMBER];
 int trace(int pid)
 {
     int status;
+    /* this only works with 64 calls, with 32 calls it's not working.
+        use struct i386_user_regs_struct instead of struct user_regs_struct
+        for 32 bits. Review how to handle both cases.
+    */
     struct user_regs_struct regs;
     int signal = 0;
 

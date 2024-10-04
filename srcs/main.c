@@ -111,33 +111,22 @@ void init_syscall_list()
 
 void ignore_signals()
 {
+    sigset_t set;
 
-    	sigset_t		set;
+    /*
+        Initialize the signal set.
+    */
+    sigemptyset(&set);
 
-	sigemptyset(&set);
 	sigprocmask(SIG_SETMASK, &set, NULL);
-	sigaddset(&set, SIGHUP);
-	sigaddset(&set, SIGINT);
-	sigaddset(&set, SIGQUIT);
-	sigaddset(&set, SIGPIPE);
-	sigaddset(&set, SIGTERM);
-	sigprocmask(SIG_BLOCK, &set, NULL);
-    // sigset_t set;
-
-    // /*
-    //     Initialize the signal set.
-    // */
-    // sigemptyset(&set);
-
-	// sigprocmask(SIG_SETMASK, &set, NULL);
-    // /*
-    //     Add the signals to be ignored.
-    // */
-    // sigaddset(&set, SIGHUP);
-    // sigaddset(&set, SIGINT);
-    // sigaddset(&set, SIGQUIT);
-    // sigaddset(&set, SIGPIPE);
-    // sigaddset(&set, SIGTERM);
+    /*
+        Add the signals to be ignored.
+    */
+    sigaddset(&set, SIGHUP);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGQUIT);
+    sigaddset(&set, SIGPIPE);
+    sigaddset(&set, SIGTERM);
 
     /*
         Add the signals to the mask.
@@ -199,6 +188,7 @@ int main(int argc, char *argv[], char* env[])
         ignore_signals();
         trace(child);
         /* TODO: implement traces*/
+        // TODO: return with proper status
         return WEXITSTATUS(status);
     }
     else
