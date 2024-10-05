@@ -186,7 +186,7 @@ int main(int argc, char *argv[], char* env[])
 
         waitpid(child, &status, 0);
         ignore_signals();
-        trace(child);
+        trace(child, argv[1]);
         /* TODO: implement traces*/
         // TODO: return with proper status
         return WEXITSTATUS(status);

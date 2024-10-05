@@ -5,19 +5,67 @@
 #include <sys/wait.h>
 #include <sys/user.h>
 #include <errno.h>
+#include <stdio.h>
+#include <elf.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 Syscall syscalls_64[MAX_SYSCALL_NUMBER];
 Syscall syscalls_32[MAX_SYSCALL_NUMBER];
 
-int trace(int pid)
+
+/* could work??? */
+int is_64bit_binary(const char *path)
+{
+    int fd = open(path, O_RDONLY);
+    if (fd < 0)
+    {
+        perror("open");
+        return -1;
+    }
+
+    unsigned char e_ident[EI_NIDENT];
+    if (read(fd, e_ident, EI_NIDENT) != EI_NIDENT)
+    {
+        perror("read");
+        close(fd);
+        return -1;
+    }
+    close(fd);
+
+    switch (e_ident[EI_CLASS])
+    {
+        case ELFCLASS32:
+            return 0;
+        case ELFCLASS64:
+            return 1;
+        default:
+            return -1;
+    }
+}
+
+
+int trace(int pid, const char *path)
 {
     int status;
     /* this only works with 64 calls, with 32 calls it's not working.
         use struct i386_user_regs_struct instead of struct user_regs_struct
         for 32 bits. Review how to handle both cases.
     */
-    struct user_regs_struct regs;
+    // union {
+        struct user_regs_struct regs;
+    //     struct user_regs_struct32 regs32;
+    // } regs;
+
     int signal = 0;
+    /* for the moment i'll only handle 64bits ones, if it's not 64 i'll care later. */
+    int is_64bit = is_64bit_binary(path);
+    
+    if (is_64bit == -1 || is_64bit == 0)
+    {
+        fprintf(stderr, "Unable to determine binary architecture.\n");
+        return -1;
+    }
 
     while (1)
     {
