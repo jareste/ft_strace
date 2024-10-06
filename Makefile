@@ -3,13 +3,13 @@ NAME = ft_strace
 #########
 RM = rm -rf
 CC = cc
-CFLAGS = -Werror -Wextra -Wall -g -O3 -fsanitize=address -DDEBUG
+CFLAGS = -Werror -Wextra -Wall -g -O3
 LDFLAGS = -lm
 RELEASE_CFLAGS = -Werror -Wextra -Wall -g -O3
 #########
 
 #########
-FILES = main trace
+FILES = main trace syscalls_64 syscalls_32
 
 SRC = $(addsuffix .c, $(FILES))
 

@@ -7,107 +7,13 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include <ft_strace.h>
 
-#ifdef DEBUG
-    static void print_syscall_list();
-#else
-    #define print_syscall_list(x, y) ((void)0)
-#endif
-
-Syscall syscalls_64[MAX_SYSCALL_NUMBER];
-Syscall syscalls_32[MAX_SYSCALL_NUMBER];
-
-#ifdef DEBUG
-/*
-    Print the list of syscalls with their number and name.
-    Just for debug purposes.
-*/
-static void print_syscall_list()
-{
-    int i;
-    bool first = true;
-
-    printf("Syscalls 64 bits\n");
-    for (i = 0; i < MAX_SYSCALL_NUMBER; i++)
-    {
-        if (syscalls_64[i].number == 0 && !first)
-            break;
-
-        first = false;
-
-        printf("%d: %s\n", syscalls_64[i].number, syscalls_64[i].name);
-    }
-
-    first = true;
-    printf("Syscalls 32 bits\n");
-    for (i = 0; i < MAX_SYSCALL_NUMBER; i++)
-    {
-        if (syscalls_32[i].number == 0 && !first)
-            break;
-
-        first = false;
-        printf("%d: %s\n", syscalls_32[i].number, syscalls_32[i].name);
-    }
-}
-#endif
-
-/*
-    As ptrace just informs a number, we need the relation between the number and the name of the syscall.
-    This function reads the unistd_64.h and unistd_32.h files to get the syscall number and name.
-*/
-void init_syscall_list()
-{
-    FILE *fp = fopen("/usr/include/x86_64-linux-gnu/asm/unistd_64.h", "r");
-    char line[256];
-    char syscall_name[MAX_SYSCALL_NAME];
-    int syscall_number;
-    int syscall_count = 0;
-
-    if (fp)
-    {
-        while (fgets(line, sizeof(line), fp))
-        {
-            if (strncmp(line, "#define __NR_", 13) == 0)
-            {
-                sscanf(line, "#define __NR_%31s %d", syscall_name, &syscall_number);
-
-                if (syscall_number < MAX_SYSCALL_NUMBER)
-                {
-                    syscalls_64[syscall_count].number = syscall_number;
-                    strncpy(syscalls_64[syscall_count].name, syscall_name, MAX_SYSCALL_NAME);
-                    // printf("%d: %s\n", syscalls_64[syscall_count].number, syscalls_64[syscall_count].name);
-                    syscall_count++;
-                }
-            }
-        }
-
-        fclose(fp);
-    }
-
-    syscall_count = 0;
-    fp = fopen("/usr/include/x86_64-linux-gnu/asm/unistd_32.h", "r");
-    if (fp)
-    {
-        while (fgets(line, sizeof(line), fp))
-        {
-            if (strncmp(line, "#define __NR_", 13) == 0)
-            {
-                sscanf(line, "#define __NR_%31s %d", syscall_name, &syscall_number);
-
-                if (syscall_number < MAX_SYSCALL_NUMBER)
-                {
-                    syscalls_32[syscall_count].number = syscall_number;
-                    strncpy(syscalls_32[syscall_count].name, syscall_name, MAX_SYSCALL_NAME);
-                    syscall_count++;
-                }
-            }
-        }
-
-        fclose(fp);
-    }
-}
+SyscallInfo syscalls_64[MAX_SYSCALL_NUMBER];
+SyscallInfo syscalls_32[MAX_SYSCALL_NUMBER];
+int env_size;
 
 void ignore_signals()
 {
@@ -134,10 +40,86 @@ void ignore_signals()
     sigprocmask(SIG_BLOCK, &set, NULL);
 }
 
+bool get_exe_path(const char* exec, char** env, char** buffer)
+{
+    if (exec == NULL || exec[0] == '\0')
+    {
+        return false;
+    }
+
+    if (strchr(exec, '/'))
+    {
+        struct stat sb;
+        if (stat(exec, &sb) == 0 && sb.st_mode & S_IXUSR)
+        {
+            *buffer = strdup(exec);
+            if (!buffer)
+            {
+                fprintf(stderr, "ft_strace: Fatal error: failed to allocate.\n");
+                abort();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    char* path_var = NULL;
+    for (int i = 0; env[i] != NULL; i++)
+    {
+        if (strncmp(env[i], "PATH=", 5) == 0)
+        {
+            path_var = env[i] + 5;  // Skip the 'PATH=' part
+            break;
+        }
+    }
+
+    if (path_var == NULL)
+    {
+        return false;
+    }
+
+    char* path = strdup(path_var);
+    if (!path)
+    {
+        fprintf(stderr, "ft_strace: Fatal error: failed to allocate.\n");
+        abort();
+    }
+    
+    char* dir = strtok(path, ":");
+    while (dir != NULL)
+    {
+        size_t len = strlen(dir) + strlen(exec) + 2;
+        *buffer = (char*)malloc(len);
+        if (!buffer)
+        {
+            fprintf(stderr, "ft_strace: Fatal error: failed to allocate.\n");
+            abort();
+        }
+
+        snprintf(*buffer, len, "%s/%s", dir, exec);
+
+        struct stat sb;
+        if (stat(*buffer, &sb) == 0 && sb.st_mode & S_IXUSR)
+        {
+            free(path);
+            return true;
+        }
+
+        free(*buffer);
+        *buffer = NULL;
+        dir = strtok(NULL, ":");
+    }
+
+    free(path);
+    return false;
+}
+
+
 int main(int argc, char *argv[], char* env[])
 {
     pid_t child;
     int status;
+    char* path;
 
     /* No program to trace */
     if (argc < 2)
@@ -146,13 +128,15 @@ int main(int argc, char *argv[], char* env[])
         return 1;
     }
 
-    /*
-        Init both structures with list of syscalls to be used later.
-    */
-    init_syscall_list(&syscalls_64, &syscalls_32);
+    env_size = 0;
+	while (env[env_size])
+		env_size++;
 
-    /* DEBUG */
-    print_syscall_list(&syscalls_64, &syscalls_32);
+    if (!get_exe_path(argv[1], env, &path))
+    {
+        fprintf(stderr, "ft_strace: Can't stat %s: no such file or directory\n", argv[1]);
+        return 1;
+    }
 
     /*
         Fork where we will run the program that will be traced.
@@ -160,18 +144,12 @@ int main(int argc, char *argv[], char* env[])
     child = fork();
     if (child == 0)
     {
-        // if (ptrace(PTRACE_TRACEME, 0, NULL, NULL) == -1)
-        // {
-        //     perror("ptrace(PTRACE_TRACEME)");
-        //     return 1;
-        // }
         /*
             Stop child until parent process it's attached properly.
         */
         raise(SIGSTOP);
 
-        /* TODO: build path */
-        execve(argv[1], &argv[1], env);
+        execve(path, &argv[1], env);
         perror("execvp");
         exit(1);
     }
@@ -186,16 +164,17 @@ int main(int argc, char *argv[], char* env[])
 
         waitpid(child, &status, 0);
         ignore_signals();
-        trace(child, argv[1]);
-        /* TODO: implement traces*/
-        // TODO: return with proper status
+        status = trace(child, path);
+        free(path);
         return WEXITSTATUS(status);
     }
     else
     {
-        fprintf(stderr, "Fatal error. fork failed: %s\n", strerror(errno));
+        fprintf(stderr, "ft_strace: fatal error. fork failed: %s\n", strerror(errno));
+        free(path);
         return 1;
     }
 
+    free(path);
     return 0;
 }
