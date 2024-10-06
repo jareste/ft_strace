@@ -1,29 +1,11 @@
 #include <ft_strace.h>
 
-#define _GNU_SOURCE
-#include <elf.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <sched.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/ptrace.h>
-#include <sys/stat.h>
-#include <sys/uio.h>
-#include <sys/user.h>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <signal.h> 
-
 #define BUFFER_SIZE 4096
 #define MAX_SIGNAME 32
 
 SyscallInfo syscalls_64[MAX_SYSCALL_NUMBER];
 SyscallInfo syscalls_32[MAX_SYSCALL_NUMBER];
-int				env_size;
+int	env_size;
 
 /* could work??? */
 int is_64bit_binary(const char *path)
@@ -97,7 +79,7 @@ char *escape(uint8_t *buffer, size_t size)
         else if (buffer[i] == '\f')
             l += sprintf(dest + l, "\\f");
         else if (buffer[i] < 32 || buffer[i] > 126)
-            l += sprintf(dest + l, "\\%03o", buffer[i]); // Octal representation
+            l += sprintf(dest + l, "\\%03o", buffer[i]);
         else
             dest[l++] = buffer[i];
     }
@@ -131,7 +113,7 @@ void print_string(pid_t pid, void* str)
     }
     else
     {
-        int len = (char *)memchr(buffer, 0, BUFFER_SIZE) - buffer;  // Get string length
+        int len = (char *)memchr(buffer, 0, BUFFER_SIZE) - buffer;
         char *escaped = escape((uint8_t *)buffer, len);
         if (!escaped)
         {
@@ -139,7 +121,7 @@ void print_string(pid_t pid, void* str)
             return;
         }
 
-        fprintf(stderr, "\"%.32s\"%s", escaped, len > 48 ? "..." : "");  // Shorten output if too long
+        fprintf(stderr, "\"%.32s\"%s", escaped, len > 48 ? "..." : "");
         free(escaped);
     }
     free(buffer);
@@ -222,11 +204,8 @@ void print_argv(pid_t pid, char **argv_remote)
 
 const char *get_signal_name(int signal)
 {
-    // fprintf(stderr, "GETTING SIGNAL(%d) sigrtmin(%d) sigrtmax(%d)\n", signal, SIGRTMIN, SIGRTMAX);
     if (signal >= MAX_SIGNAME && signal <= SIGRTMAX)
     {
-        // fprintf(stderr, "GETTING SIGNAL\n");
-        // Handle real-time signals: return SIGRTMIN, SIGRT_1, SIGRT_2, etc.
         static char rt_signal_name[20];
         if (signal == MAX_SIGNAME)
             return "SIGRTMIN";
@@ -298,38 +277,29 @@ static void print_64bit_syscall(pid_t pid, struct user_regs_struct* regs)
 
             switch (syscall.arg_types[i]) {
                 case INT:
-                    // fprintf(stderr, "SEGV on INT\n");
                     fprintf(stderr, "%d", (int)arg);
                     break;
                 case ULONG:
-                    // fprintf(stderr, "SEGV on ULONG\n");
                     fprintf(stderr, "%ld", (unsigned long)arg);
                     break;
                 case STR:
-                    // fprintf(stderr, "SEGV on STR\n");
                     print_string(pid, (void *)arg);
                     break;
                 case PTR:
-                    // fprintf(stderr, "SEGV on PTR\n");
                     print_ptr((void *)arg);
                     break;
                 case FLAG_OPEN:
-                    // fprintf(stderr, "SEGV on FLAG_OPEN\n");
                     print_flag_open(arg);
                     break;
                 case ARGV:
-                    // fprintf(stderr, "SEGV on ARGV\n");
                     print_argv(pid, (char **)arg);
                     break;
                 case ENVP:
-                    // fprintf(stderr, "SEGV on ENVP\n");
                     fprintf(stderr, "%p /* %d vars */", (void *)arg, env_size);
                     break;
                 case SIGNAL:
-                    // fprintf(stderr, "SEGV on SIGNAL (%u)\n", (unsigned int)arg);
                     if ((int)arg <= SIGRTMAX)
                     {
-                        // fprintf(stderr,"GETTING SIGNAL\n");
                         fprintf(stderr, "%s", get_signal_name((unsigned int)arg));
                     }
                     else
@@ -383,7 +353,6 @@ static void print_32bit_syscall(pid_t pid, struct user_regs_struct32* regs32)
 
             switch (syscall.arg_types[i]) {
                 case INT:
-                    // fprintf(stderr, "SEGV on INT\n");
                     fprintf(stderr, "%d", (int)arg);
                     break;
                 case ULONG:
@@ -391,30 +360,23 @@ static void print_32bit_syscall(pid_t pid, struct user_regs_struct32* regs32)
                     fprintf(stderr, "%ld", (unsigned long)arg);
                     break;
                 case STR:
-                    // fprintf(stderr, "SEGV on STR\n");
                     print_string(pid, (void *)arg);
                     break;
                 case PTR:
-                    // fprintf(stderr, "SEGV on PTR\n");
                     print_ptr((void *)arg);
                     break;
                 case FLAG_OPEN:
-                    // fprintf(stderr, "SEGV on FLAG_OPEN\n");
                     print_flag_open(arg);
                     break;
                 case ARGV:
-                    // fprintf(stderr, "SEGV on ARGV\n");
                     print_argv(pid, (char **)arg);
                     break;
                 case ENVP:
-                    // fprintf(stderr, "SEGV on ENVP\n");
                     fprintf(stderr, "%p /* %d vars */", (void *)arg, env_size);
                     break;
                 case SIGNAL:
-                    // fprintf(stderr, "SEGV on SIGNAL (%u)\n", (unsigned int)arg);
                     if ((int)arg <= SIGRTMAX)
                     {
-                        // fprintf(stderr,"GETTING SIGNAL\n");
                         fprintf(stderr, "%s", get_signal_name((unsigned int)arg));
                     }
                     else
@@ -445,8 +407,7 @@ static void print_32bit_syscall(pid_t pid, struct user_regs_struct32* regs32)
 
 }
 
-
-int trace(int pid, const char *path)
+int trace(int pid, const char *path, bool count_syscalls)
 {
     int status;
     union {
@@ -472,19 +433,17 @@ int trace(int pid, const char *path)
 
     while (1)
     {
-        // printf("Waiting for Usyscall\n");
 		if (ptrace(PTRACE_SYSCALL, pid, NULL, signal) < 0)
         {
-            // perror("ptrace(PTRACE_SYSCALL)");
             break ;
         }
 		if (waitpid(pid, &status, 0) < 0)
         {
-            // printf("waitpid failed\n");
             break ;
         }
 
-        if (init && !ptrace(PTRACE_GETSIGINFO, pid, NULL, &si) && si.si_signo != SIGTRAP)
+        if (init && !count_syscalls &&\
+         !ptrace(PTRACE_GETSIGINFO, pid, NULL, &si) && si.si_signo != SIGTRAP)
         {
             signal = si.si_signo;
             fprintf(stderr, "--- %s {si_signo=%d, si_code=%s, si_pid=%d, si_uid=%d, si_errno=%d} ---\n",\
@@ -507,47 +466,61 @@ int trace(int pid, const char *path)
             
             init = true;
 
-            print_64bit_syscall(pid, &regs.regs64);
-            if (is_return)
+            if (count_syscalls)
             {
-                is_return = false;
+                count_64bit_syscall(&regs.regs64);
             }
             else
-                is_return = true;
+            {
+                print_64bit_syscall(pid, &regs.regs64);
+                if (is_return)
+                {
+                    is_return = false;
+                }
+                else
+                    is_return = true;
+            }
         }
         else
         {
             unsigned long syscall_num = regs.regs32.orig_eax;
             
-            // fprintf(stderr, "[ Process PID=%d runs in 32 bit mode. ]\n", pid);
-            // fprintf(stderr, "syscall number: %ld, (%d)\n", syscall_num, -ENOSYS);
-
             /**Validate syscall number to avoid invalid accesses**/
             if (syscall_num >= MAX_SYSCALL_NUMBER)
             {
-                // fprintf(stderr, "Invalid syscall number: %ld\n", syscall_num);
-                continue;  // Skip invalid syscall numbers
+                continue;
             }
 
             init = true;
 
-            print_32bit_syscall(pid, &regs.regs32);
-            if (is_return)
+            if (count_syscalls)
             {
-                is_return = false;
+                count_32bit_syscall(&regs.regs32);
             }
             else
-                is_return = true;
+            {
+                print_32bit_syscall(pid, &regs.regs32);
+                if (is_return)
+                {
+                    is_return = false;
+                }
+                else
+                    is_return = true;
 
-            i++;
-            /*
-                horrible way to handle it, but it's the best one i thought... sorry.
-            */
-            if (i == 2)
-                fprintf(stderr, "ft_strace: [ Process PID=%d runs in 32 bit mode. ]\n", pid);            
+                i++;
+                /*
+                    horrible way to handle it, but it's the best one i thought... sorry.
+                */
+                if (i == 2)
+                    fprintf(stderr, "ft_strace: [ Process PID=%d runs in 32 bit mode. ]\n", pid);
+            }
         }
     }
-    if (WIFSIGNALED(status))
+
+    if (count_syscalls) {
+        print_syscall_summary(is_64bit);
+    }
+    else if (WIFSIGNALED(status))
 	{
 		fprintf(stderr, "+++ killed by %s +++\n",\
         get_signal_name(WTERMSIG(status)));

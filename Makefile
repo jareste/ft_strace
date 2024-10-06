@@ -9,7 +9,7 @@ RELEASE_CFLAGS = -Werror -Wextra -Wall -g -O3
 #########
 
 #########
-FILES = main trace syscalls_64 syscalls_32
+FILES = main trace syscalls_64 syscalls_32 trace_c
 
 SRC = $(addsuffix .c, $(FILES))
 

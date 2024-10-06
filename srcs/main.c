@@ -120,6 +120,15 @@ int main(int argc, char *argv[], char* env[])
     pid_t child;
     int status;
     char* path;
+    bool c_flag = false;
+
+
+    if (argc > 1 && strcmp(argv[1], "-c") == 0)
+    {
+        c_flag = true;
+        argv++;
+        argc--;
+    }
 
     /* No program to trace */
     if (argc < 2)
@@ -137,6 +146,12 @@ int main(int argc, char *argv[], char* env[])
         fprintf(stderr, "ft_strace: Can't stat %s: no such file or directory\n", argv[1]);
         return 1;
     }
+
+    if (c_flag)
+    {
+        init_syscall_stats();
+    }
+
 
     /*
         Fork where we will run the program that will be traced.
@@ -164,7 +179,7 @@ int main(int argc, char *argv[], char* env[])
 
         waitpid(child, &status, 0);
         ignore_signals();
-        status = trace(child, path);
+        status = trace(child, path, c_flag);
         free(path);
         return WEXITSTATUS(status);
     }
