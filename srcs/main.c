@@ -15,9 +15,10 @@
 // SyscallInfo syscalls_32[MAX_SYSCALL_NUMBER];
 int env_size;
 
-void ignore_signals()
+void ignore_signals(pid_t child)
 {
     sigset_t set;
+    int status;
 
     /*
         Initialize the signal set.
@@ -25,6 +26,9 @@ void ignore_signals()
     sigemptyset(&set);
 
 	sigprocmask(SIG_SETMASK, &set, NULL);
+
+    waitpid(child, &status, 0);
+
     /*
         Add the signals to be ignored.
     */
@@ -177,8 +181,7 @@ int main(int argc, char *argv[], char* env[])
         if (ptrace(PTRACE_INTERRUPT, child, NULL, NULL) < 0)
             fprintf(stderr, "%s: ptrace: %s\n", "ft_strace", strerror(errno));
 
-        waitpid(child, &status, 0);
-        ignore_signals();
+        ignore_signals(child);
         status = trace(child, path, c_flag);
         free(path);
         return WEXITSTATUS(status);

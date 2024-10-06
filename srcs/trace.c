@@ -336,7 +336,7 @@ static void print_32bit_syscall(pid_t pid, struct user_regs_struct32* regs32)
     
     unsigned long syscall_num = regs32->orig_eax;
 
-    if (syscall_num < MAX_SYSCALL_NUMBER && entering) {
+    if (syscall_num < MAX_SYSCALL_NUMBER && entering && regs32->eax == -ENOSYS) {
         SyscallInfo syscall = syscalls_32[syscall_num];
         fprintf(stderr, "%s(", syscall.name);
 
@@ -459,7 +459,7 @@ int trace(int pid, const char *path, bool count_syscalls)
             break;
         }
 
-        if (is_64bit)
+        if (iov.iov_len == sizeof(struct user_regs_struct))
         {
             if (strcmp(syscalls_64[regs.regs64.orig_rax].name, "execve") && !init)
                 continue;
@@ -485,8 +485,9 @@ int trace(int pid, const char *path, bool count_syscalls)
         {
             unsigned long syscall_num = regs.regs32.orig_eax;
             
+            // fprintf(stderr, "\nsyscall_num: %ld\n", syscall_num);
             /**Validate syscall number to avoid invalid accesses**/
-            if (syscall_num >= MAX_SYSCALL_NUMBER)
+            if ((syscall_num >= MAX_SYSCALL_NUMBER))// || (syscall_num == 0))
             {
                 continue;
             }
@@ -499,6 +500,8 @@ int trace(int pid, const char *path, bool count_syscalls)
             }
             else
             {
+                if (i == 0)
+                    fprintf(stderr, " = 0\nft_strace: [ Process PID=%d runs in 32 bit mode. ]\n", pid);
                 print_32bit_syscall(pid, &regs.regs32);
                 if (is_return)
                 {
@@ -508,11 +511,6 @@ int trace(int pid, const char *path, bool count_syscalls)
                     is_return = true;
 
                 i++;
-                /*
-                    horrible way to handle it, but it's the best one i thought... sorry.
-                */
-                if (i == 2)
-                    fprintf(stderr, "ft_strace: [ Process PID=%d runs in 32 bit mode. ]\n", pid);
             }
         }
     }
