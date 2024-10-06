@@ -1,4 +1,4 @@
-#include <ft_strace.h>
+#include "ft_strace.h"
 
 
 SyscallInfo syscalls_32[MAX_SYSCALL_NUMBER] = {

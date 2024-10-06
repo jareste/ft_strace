@@ -1,4 +1,4 @@
-#include <ft_strace.h>
+#include "ft_strace.h"
 
 SyscallInfo syscalls_64[MAX_SYSCALL_NUMBER] = {
 [  0] = {"read", 3, {INT, PTR, INT, 0, 0, 0}, INT},

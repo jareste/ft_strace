@@ -25,7 +25,7 @@ DEP = $(addsuffix .d, $(basename $(OBJ)))
 #########
 $(OBJ_DIR)/%.o: %.c
 	@mkdir -p $(@D)
-	${CC} -MMD $(CFLAGS) -c -Isrcs -Iinc $< -o $@
+	${CC} -MMD $(CFLAGS) -c $< -o $@
 
 all: .gitignore
 	$(MAKE) $(NAME)

@@ -9,10 +9,10 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#include <ft_strace.h>
+#include "ft_strace.h"
 
-SyscallInfo syscalls_64[MAX_SYSCALL_NUMBER];
-SyscallInfo syscalls_32[MAX_SYSCALL_NUMBER];
+// SyscallInfo syscalls_64[MAX_SYSCALL_NUMBER];
+// SyscallInfo syscalls_32[MAX_SYSCALL_NUMBER];
 int env_size;
 
 void ignore_signals()

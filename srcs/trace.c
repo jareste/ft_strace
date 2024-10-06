@@ -1,11 +1,11 @@
-#include <ft_strace.h>
+#include "ft_strace.h"
 
 #define BUFFER_SIZE 4096
 #define MAX_SIGNAME 32
 
-SyscallInfo syscalls_64[MAX_SYSCALL_NUMBER];
-SyscallInfo syscalls_32[MAX_SYSCALL_NUMBER];
-int	env_size;
+// SyscallInfo syscalls_64[MAX_SYSCALL_NUMBER];
+// SyscallInfo syscalls_32[MAX_SYSCALL_NUMBER];
+// int	env_size;
 
 /* could work??? */
 int is_64bit_binary(const char *path)
