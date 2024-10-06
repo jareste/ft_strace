@@ -106,10 +106,15 @@ void print_syscall_summary(int is_64bit)
             double percentage = (stats[i].total_time / total_time) * 100;
             double usecs_per_call = stats[i].total_time / stats[i].count;
 
-            fprintf(stderr, "%6.2f  %10.6f  %10.2f  %10d  %7d  %s\n",
-                    percentage, time, usecs_per_call, stats[i].count,
-                    stats[i].error_count,
-                    is_64bit ? syscalls_64[i].name : syscalls_32[i].name);
+            if (stats[i].error_count != 0)
+                fprintf(stderr, "%6.2f  %10.6f  %10.2f  %10d  %7d  %s\n",
+                        percentage, time, usecs_per_call, stats[i].count,
+                        stats[i].error_count,
+                        is_64bit ? syscalls_64[i].name : syscalls_32[i].name);
+            else
+                fprintf(stderr, "%6.2f  %10.6f  %10.2f  %10d  %7s  %s\n",
+                        percentage, time, usecs_per_call, stats[i].count,
+                        " ", is_64bit ? syscalls_64[i].name : syscalls_32[i].name);
         }
     }
 
