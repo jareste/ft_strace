@@ -21,6 +21,8 @@
 
 #define MAX_SYSCALL_NAME    32
 #define MAX_SYSCALL_NUMBER  512
+#define MAX_SYSCALL_32	    403
+#define MAX_SYSCALL_64	    334
 
 /* TYPES */
 # define INT				1

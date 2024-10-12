@@ -394,5 +394,6 @@ SyscallInfo syscalls_32[MAX_SYSCALL_NUMBER] = {
 [399] = {"msgget", 2, {0, 0, 0, 0, 0, 0}, 0},
 [400] = {"msgsnd", 4, {0, 0, 0, 0, 0, 0}, 0},
 [401] = {"msgrcv", 5, {0, 0, 0, 0, 0, 0}, 0},
-[402] = {"msgctl", 3, {0, 0, 0, 0, 0, 0}, 0}
+[402] = {"msgctl", 3, {0, 0, 0, 0, 0, 0}, 0},
+[403] = {"clock_nanosleep_time64", 4, {0, INT, 0, 0, 0, 0}, INT},
 };

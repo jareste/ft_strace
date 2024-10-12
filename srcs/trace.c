@@ -254,15 +254,27 @@ const char *get_signal_name(int signal)
     }
 }
 
-static void print_64bit_syscall(pid_t pid, struct user_regs_struct* regs)
+static bool* get_entering(bool is_64bit)
 {
     static bool entering = true;
+    static bool entering32 = true;
+
+    if (is_64bit)
+        return &entering;
+    else
+        return &entering32;
+}
+
+static void print_64bit_syscall(pid_t pid, struct user_regs_struct* regs)
+{
+    bool *entering = get_entering(true);
     
     unsigned long syscall_num = regs->orig_rax;
 
-    if (syscall_num < MAX_SYSCALL_NUMBER && entering) {
+    if (syscall_num < MAX_SYSCALL_NUMBER && *entering) {
+        *entering = false;
         SyscallInfo syscall = syscalls_64[syscall_num];
-        fprintf(stderr, "%s(", syscall.name);
+        fprintf(stderr, "%s(", syscall_num <= MAX_SYSCALL_64 ? syscall.name:"unknown");
 
         for (int i = 0; i < syscall.arg_count; i++) {
             unsigned long arg = 0;
@@ -315,30 +327,31 @@ static void print_64bit_syscall(pid_t pid, struct user_regs_struct* regs)
             }
 
         }
-        entering = false;
         fprintf(stderr, ")");
         
     }
-    else if (!entering)
+    else if (!*entering)
     {
         if (syscalls_64[syscall_num].return_type == INT)
             fprintf(stderr, " = %d\n", (int)regs->rax);
         else
             fprintf(stderr, " = 0x%llx\n", regs->rax);
-        entering = true;
+        *entering = true;
     }
 
 }
 
 static void print_32bit_syscall(pid_t pid, struct user_regs_struct32* regs32)
 {
-    static bool entering = true;
+    bool *entering = get_entering(false);
     
     unsigned long syscall_num = regs32->orig_eax;
 
-    if (syscall_num < MAX_SYSCALL_NUMBER && entering && regs32->eax == -ENOSYS) {
+    if (syscall_num < MAX_SYSCALL_NUMBER && *entering && regs32->eax == -ENOSYS) {
+        // printf("entering changed to false\n");
+        *entering = false;
         SyscallInfo syscall = syscalls_32[syscall_num];
-        fprintf(stderr, "%s(", syscall.name);
+        fprintf(stderr, "%s(", syscall_num <= MAX_SYSCALL_32 ? syscall.name:"unknown");
 
         for (int i = 0; i < syscall.arg_count; i++) {
             unsigned long arg = 0;
@@ -392,17 +405,16 @@ static void print_32bit_syscall(pid_t pid, struct user_regs_struct32* regs32)
             }
 
         }
-        entering = false;
         fprintf(stderr, ")");
         
     }
-    else if (!entering)
+    else if (!*entering)
     {
         if (syscalls_64[syscall_num].return_type == INT)
             fprintf(stderr, " = %d\n", (int)regs32->eax);
         else
             fprintf(stderr, " = %#x\n", regs32->eax);
-        entering = true;
+        *entering = true;
     }
 
 }
@@ -420,7 +432,6 @@ int trace(int pid, const char *path, bool count_syscalls)
 
 	siginfo_t si;
     bool init = false;
-    bool is_return = false;
     int i = 0;
     int signal = 0;
     int is_64bit = is_64bit_binary(path);
@@ -473,12 +484,6 @@ int trace(int pid, const char *path, bool count_syscalls)
             else
             {
                 print_64bit_syscall(pid, &regs.regs64);
-                if (is_return)
-                {
-                    is_return = false;
-                }
-                else
-                    is_return = true;
             }
         }
         else
@@ -503,12 +508,6 @@ int trace(int pid, const char *path, bool count_syscalls)
                 if (i == 0)
                     fprintf(stderr, " = 0\nft_strace: [ Process PID=%d runs in 32 bit mode. ]\n", pid);
                 print_32bit_syscall(pid, &regs.regs32);
-                if (is_return)
-                {
-                    is_return = false;
-                }
-                else
-                    is_return = true;
 
                 i++;
             }
@@ -526,7 +525,7 @@ int trace(int pid, const char *path, bool count_syscalls)
 	}
 	else
     {
-        if (is_return)
+        if (!(*get_entering(is_64bit)))
             fprintf(stderr, " = ?\n");
     	fprintf(stderr, "+++ exited with %d +++\n", WEXITSTATUS(status));
     }

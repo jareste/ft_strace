@@ -126,7 +126,6 @@ int main(int argc, char *argv[], char* env[])
     char* path;
     bool c_flag = false;
 
-
     if (argc > 1 && strcmp(argv[1], "-c") == 0)
     {
         c_flag = true;
